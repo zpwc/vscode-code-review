@@ -57,6 +57,8 @@ export class WorkspaceContext {
   private exportAsHtmlWithHandlebarsTemplateRegistration!: Disposable;
   private exportAsMarkdownWithDefaultTemplateRegistration!: Disposable;
   private exportAsMarkdownWithHandlebarsTemplateRegistration!: Disposable;
+  private copyAsMarkdownWithDefaultTemplateRegistration!: Disposable;
+  private copyAsMarkdownWithHandlebarsTemplateRegistration!: Disposable;
   private exportAsGitLabImportableCsvRegistration!: Disposable;
   private exportAsGitHubImportableCsvRegistration!: Disposable;
   private exportAsJiraImportableCsvRegistration!: Disposable;
@@ -381,6 +383,39 @@ export class WorkspaceContext {
     );
 
     /**
+     * copy the report as Markdown to the clipboard using default template
+     */
+    this.copyAsMarkdownWithDefaultTemplateRegistration = commands.registerCommand(
+      'codeReview.copyAsMarkdownWithDefaultTemplate',
+      () => {
+        this.exportFactory.copyForFormat('markdown', this.getDefaultMarkdownTemplate());
+      },
+    );
+
+    /**
+     * copy the report as Markdown to the clipboard using a specific handlebars template
+     */
+    this.copyAsMarkdownWithHandlebarsTemplateRegistration = commands.registerCommand(
+      'codeReview.copyAsMarkdownWithHandlebarsTemplate',
+      () => {
+        window
+          .showOpenDialog({
+            canSelectFolders: false,
+            canSelectFiles: true,
+            canSelectMany: false,
+            openLabel: 'Use template',
+            filters: {
+              Template: ['hbs', 'md', 'markdown', 'mdx', 'handlebars'],
+            },
+          })
+          .then((files) => {
+            const template = files?.length ? files[0] : undefined;
+            this.exportFactory.copyForFormat('markdown', template ?? this.getDefaultMarkdownTemplate());
+          });
+      },
+    );
+
+    /**
      * allow users to export the report as GitLab importable CSV file
      */
     this.exportAsGitLabImportableCsvRegistration = commands.registerCommand(
@@ -530,6 +565,8 @@ export class WorkspaceContext {
       this.exportAsHtmlWithHandlebarsTemplateRegistration,
       this.exportAsMarkdownWithDefaultTemplateRegistration,
       this.exportAsMarkdownWithHandlebarsTemplateRegistration,
+      this.copyAsMarkdownWithDefaultTemplateRegistration,
+      this.copyAsMarkdownWithHandlebarsTemplateRegistration,
       this.exportAsGitLabImportableCsvRegistration,
       this.exportAsGitHubImportableCsvRegistration,
       this.exportAsJiraImportableCsvRegistration,
@@ -557,6 +594,8 @@ export class WorkspaceContext {
     this.exportAsHtmlWithHandlebarsTemplateRegistration.dispose();
     this.exportAsMarkdownWithDefaultTemplateRegistration.dispose();
     this.exportAsMarkdownWithHandlebarsTemplateRegistration.dispose();
+    this.copyAsMarkdownWithDefaultTemplateRegistration.dispose();
+    this.copyAsMarkdownWithHandlebarsTemplateRegistration.dispose();
     this.exportAsGitLabImportableCsvRegistration.dispose();
     this.exportAsGitHubImportableCsvRegistration.dispose();
     this.exportAsJiraImportableCsvRegistration.dispose();

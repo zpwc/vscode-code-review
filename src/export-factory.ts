@@ -13,6 +13,7 @@ import {
   ThemeIcon,
   commands,
   TextDocument,
+  env,
 } from 'vscode';
 
 import { parseFile } from '@fast-csv/parse';
@@ -393,6 +394,63 @@ export class ExportFactory {
       .on('end', (_rows: number) => {
         return exporter?.handleEnd(outputFile, exporter?.storeOutside ? data : [], template);
       });
+  }
+
+  /**
+   * Copy the review data to the clipboard for a given format
+   * @param format the format to copy
+   * @param template the template to use
+   */
+  copyForFormat(format: ExportFormat, template: Uri) {
+    const exporter = this.exportHandlerMap.get(format);
+
+    const data: CsvEntry[] = [];
+    parseFile(this.absoluteFilePath, { delimiter: ',', ignoreEmpty: true, headers: true })
+      .on('error', this.handleError)
+      .on('data', (comment: CsvEntry) => {
+        comment = CsvStructure.finalizeParse(comment);
+
+        if (this.isCommentEligible(comment)) {
+          if (this.includePrivateComments || comment.private === 0) {
+            const tmp = exporter?.handleData(this.absoluteFilePath, comment);
+            if (tmp) {
+              data.push(tmp);
+            }
+          }
+        }
+      })
+      .on('end', (_rows: number) => {
+        this.copyToClipboard(data, template, format);
+      });
+  }
+
+  private async copyToClipboard(rows: CsvEntry[], template: Uri, format: ExportFormat) {
+    try {
+      let templateData;
+      try {
+        templateData = fs.readFileSync(template.fsPath, 'utf8');
+      } catch (error: any) {
+        window.showErrorMessage(`Error when reading the template file: '${template.fsPath}'`);
+        throw error;
+      }
+
+      let reviewExportData: ReviewFileExportSection[] = [];
+      reviewExportData = this.groupResults(rows, this.groupBy);
+      if (this.groupBy === Group.filename) {
+        reviewExportData.forEach((group) => {
+          group.lines.sort(sortCsvEntryForLines);
+        });
+      }
+
+      handlebars.registerHelper('codeBlock', (code: string) => decode(code));
+      const templateCompiled = handlebars.compile(templateData);
+      const output = templateCompiled(reviewExportData);
+
+      await env.clipboard.writeText(output);
+      window.showInformationMessage('Code review copied to clipboard.');
+    } catch (error) {
+      window.showErrorMessage(`Error copying to clipboard: ${error}`);
+    }
   }
 
   /**

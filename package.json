@@ -65,6 +65,14 @@
         "title": "Code Review: Export as Markdown with Handlebars template"
       },
       {
+        "command": "codeReview.copyAsMarkdownWithDefaultTemplate",
+        "title": "Code Review: Copy as Markdown with default template"
+      },
+      {
+        "command": "codeReview.copyAsMarkdownWithHandlebarsTemplate",
+        "title": "Code Review: Copy as Markdown with Handlebars template"
+      },
+      {
         "command": "codeReview.exportAsGitLabImportableCsv",
         "title": "Code Review: Export as GitLab importable CSV file"
       },
@@ -168,6 +176,16 @@
           "command": "codeReview.exportAsMarkdownWithHandlebarsTemplate",
           "when": "view == code-review.list",
           "group": "export_markdown@1"
+        },
+        {
+          "command": "codeReview.copyAsMarkdownWithDefaultTemplate",
+          "when": "view == code-review.list",
+          "group": "copy_markdown@0"
+        },
+        {
+          "command": "codeReview.copyAsMarkdownWithHandlebarsTemplate",
+          "when": "view == code-review.list",
+          "group": "copy_markdown@1"
         },
         {
           "command": "codeReview.exportAsGitLabImportableCsv",
@@ -491,6 +509,7 @@
     "@types/vscode": "^1.59.0",
     "@typescript-eslint/eslint-plugin": "^5.21.0",
     "@typescript-eslint/parser": "^5.21.0",
+    "@vscode/vsce": "^3.9.1",
     "commitizen": "^4.2.4",
     "copy-webpack-plugin": "^10.2.4",
     "cz-conventional-changelog": "^3.3.0",
