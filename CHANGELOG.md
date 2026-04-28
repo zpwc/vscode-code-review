@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.34.0](https://github.com/d-koppenhagen/vscode-code-review/compare/v1.33.1...v1.34.0) (2026-04-28)
+
+
+### Features
+
+* add copy as markdown commands ([65097db](https://github.com/d-koppenhagen/vscode-code-review/commit/65097db0798fbd1913f5fe721b03cd656d15e42a))
+
+
+### Bug Fixes
+
+* missing quoting/escaping of double quotes upon CSV export ([6548435](https://github.com/d-koppenhagen/vscode-code-review/commit/6548435a3463889dd096f548060a705189be3fe0)), closes [#158](https://github.com/d-koppenhagen/vscode-code-review/issues/158) [#158](https://github.com/d-koppenhagen/vscode-code-review/issues/158)
+
 ### [1.33.1](https://github.com/d-koppenhagen/vscode-code-review/compare/v1.33.0...v1.33.1) (2022-12-23)
 
 
