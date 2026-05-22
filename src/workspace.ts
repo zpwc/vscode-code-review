@@ -43,6 +43,18 @@ export class WorkspaceContext {
   private commentsProvider!: CommentsProvider;
   private fileWatcher!: FileSystemWatcher;
 
+  get reviewCommentService(): ReviewCommentService {
+    return this.commentService;
+  }
+
+  get reviewCommentsProvider(): CommentsProvider {
+    return this.commentsProvider;
+  }
+
+  get fileGenerator(): FileGenerator {
+    return this.generator;
+  }
+
   private openSelectionRegistration!: Disposable;
   private addNoteRegistration!: Disposable;
   private filterByCommitEnableRegistration!: Disposable;
