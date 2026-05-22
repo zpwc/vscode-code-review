@@ -1,13 +1,11 @@
 // The module vscode contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 
-// The module vscode contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-
-import { workspace, ExtensionContext, WorkspaceFolder, window, commands } from 'vscode';
+import { workspace, ExtensionContext, WorkspaceFolder, window, commands, languages } from 'vscode';
 import { getWorkspaceFolder, isProperSubpathOf } from './utils/workspace-util';
 import { WorkspaceContext } from './workspace';
 import { AnnotationManager } from './annotationManager';
+import { AnnotationHoverProvider } from './annotationHoverProvider';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -57,6 +55,17 @@ export function activate(context: ExtensionContext) {
     workspaceContext.updateDecorations();
   });
   context.subscriptions.push(annotationManager);
+
+  // Hover provider for code review comments
+  const hoverProvider = new AnnotationHoverProvider(
+    workspaceContext.fileGenerator.absoluteReviewFilePath,
+    workspaceRoot,
+  );
+  context.subscriptions.push(hoverProvider);
+  context.subscriptions.push(
+    languages.registerHoverProvider({ scheme: 'file' }, hoverProvider),
+    languages.registerHoverProvider({ scheme: 'untitled' }, hoverProvider),
+  );
 
   context.subscriptions.push(
     commands.registerCommand('annote.toggleMode', () => {
