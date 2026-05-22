@@ -485,9 +485,10 @@ export class ExportFactory {
 
     entries.sort(compare);
     const result = entries.map((entry: Model) => {
+      const resolvedLabel = entry.resolved ? '✅ ' : '';
       const item = new CommentListEntry(
         entry.id,
-        entry.title,
+        resolvedLabel + entry.title,
         entry.comment,
         entry.comment,
         TreeItemCollapsibleState.None,
@@ -495,13 +496,15 @@ export class ExportFactory {
         entry.priority,
         entry.private,
       );
-      item.contextValue = 'comment';
+      item.contextValue = entry.resolved ? 'comment-resolved' : 'comment';
       item.command = {
         command: 'codeReview.openSelection',
         title: 'Open comment',
         arguments: [commentGroupedInFile.data, entry],
       };
-      item.iconPath = this.getIcon(entry.priority, entry.private);
+      item.iconPath = entry.resolved
+        ? new ThemeIcon('check', themeColorForPriority(entry.priority) ?? undefined)
+        : this.getIcon(entry.priority, entry.private);
 
       return item;
     });

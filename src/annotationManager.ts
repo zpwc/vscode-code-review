@@ -164,6 +164,7 @@ export class AnnotationManager implements Disposable {
       additional: '',
       id: uuidv4(),
       private: 0,
+      resolved: 0,
     };
 
     await this.commentService.addComment(entry, editor);

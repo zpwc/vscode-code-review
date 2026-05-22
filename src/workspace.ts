@@ -74,6 +74,7 @@ export class WorkspaceContext {
   private exportAsJsonRegistration!: Disposable;
   private importFromJsonRegistration!: Disposable;
   private commentCodeLensProviderregistration!: Disposable;
+  private toggleResolvedRegistration!: Disposable;
   private decorations: Decorations;
 
   constructor(private context: ExtensionContext, public workspaceRoot: string) {
@@ -127,12 +128,15 @@ export class WorkspaceContext {
 
     this.exportFactory.getFilesContainingComments().then((fileEntries) => {
       const matchingFile = fileEntries.find((file) => editor.document.fileName.endsWith(file.label));
+      // iterate over all comments associated with this file
       if (matchingFile) {
-        // iterate over all comments associated with this file
         this.exportFactory.getComments(matchingFile).then((comments) => {
+          // Filter out resolved comments so their icons are hidden
           // comments[0] as we only need a single comment related to a line to identify the place where to put it
-          this.decorations.underlineDecoration(comments[0].data.lines, editor);
-          this.decorations.commentIconDecoration(comments[0].data.lines, editor);
+          const lines = comments[0].data.lines as CsvEntry[];
+          const unresolved = lines.filter((e) => !e.resolved);
+          this.decorations.underlineDecoration(unresolved, editor);
+          this.decorations.commentIconDecoration(unresolved, editor);
         });
       }
     });
@@ -549,6 +553,20 @@ export class WorkspaceContext {
     // CodeLens disabled: comments are accessed via hover on 💬 icon or sidebar
     this.commentCodeLensProviderregistration = new Disposable(() => {});
 
+    /**
+     * toggle resolved state of a comment
+     */
+    this.toggleResolvedRegistration = commands.registerCommand(
+      'codeReview.toggleResolved',
+      (commentListEntry: CommentListEntry) => {
+        if (commentListEntry?.id) {
+          this.commentService.toggleResolved(commentListEntry.id);
+          this.commentsProvider.refresh();
+          this.updateDecorations();
+        }
+      },
+    );
+
     this.updateSubscriptions();
   }
 
@@ -579,6 +597,7 @@ export class WorkspaceContext {
       this.exportAsJsonRegistration,
       this.importFromJsonRegistration,
       this.commentCodeLensProviderregistration,
+      this.toggleResolvedRegistration,
     );
   }
 
@@ -608,6 +627,7 @@ export class WorkspaceContext {
     this.exportAsJsonRegistration.dispose();
     this.importFromJsonRegistration.dispose();
     this.commentCodeLensProviderregistration.dispose();
+    this.toggleResolvedRegistration.dispose();
     this.updateSubscriptions();
   }
 

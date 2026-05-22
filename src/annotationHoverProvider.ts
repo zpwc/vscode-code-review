@@ -69,7 +69,8 @@ export class AnnotationHoverProvider implements HoverProvider {
           const iconChar = range.end.character;
           if (position.line === iconLine && position.character >= iconChar - 1 && position.character <= iconChar + 2) {
             const markdown = new MarkdownString();
-            markdown.appendMarkdown('---\n**\u{1F4AC} ' + (entry.title || 'Comment') + '**\n\n');
+            const statusLabel = entry.resolved ? ' ✅ Resolved' : '';
+            markdown.appendMarkdown('---\n**\u{1F4AC} ' + (entry.title || 'Comment') + '**' + statusLabel + '\n\n');
             markdown.appendMarkdown('> ' + entry.comment.replace(/[\\`*_{}[\]()#+\-.!]/g, '\\$&') + '\n\n---\n');
             if (entry.priority) {
               markdown.appendMarkdown('*Priority:* `' + ['', 'low', 'medium', 'high'][entry.priority] + '`  \n');

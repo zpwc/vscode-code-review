@@ -97,6 +97,10 @@
         "title": "Code Review: Import from JSON file"
       },
       {
+        "command": "codeReview.toggleResolved",
+        "title": "Toggle Resolved"
+      },
+      {
         "command": "codeReview.deleteNote",
         "title": "Delete"
       },
@@ -254,8 +258,12 @@
       ],
       "view/item/context": [
         {
+          "command": "codeReview.toggleResolved",
+          "when": "view == code-review.list && viewItem =~ /^comment/"
+        },
+        {
           "command": "codeReview.deleteNote",
-          "when": "view == code-review.list && viewItem == comment"
+          "when": "view == code-review.list && viewItem =~ /^comment/"
         }
       ]
     },
