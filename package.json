@@ -98,7 +98,8 @@
       },
       {
         "command": "codeReview.toggleResolved",
-        "title": "Toggle Resolved"
+        "title": "Toggle Resolved",
+        "icon": "$(check)"
       },
       {
         "command": "codeReview.deleteNote",
@@ -259,7 +260,8 @@
       "view/item/context": [
         {
           "command": "codeReview.toggleResolved",
-          "when": "view == code-review.list && viewItem =~ /^comment/"
+          "when": "view == code-review.list && viewItem =~ /^comment/",
+          "group": "inline"
         },
         {
           "command": "codeReview.deleteNote",
