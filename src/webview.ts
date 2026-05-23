@@ -9,55 +9,84 @@ import { clearSelection, getSelectionRanges } from './utils/editor-utils';
 import { colorizedBackgroundDecoration } from './utils/decoration-utils';
 
 export class WebViewComponent {
-  /** Store all configured categories */
   private categories: string[] = [];
-  /** Store the color for background-highlighting */
   private highlightDecorationColor: string = '';
-  /** Panel used to add/edit a comment */
   private panel: WebviewPanel | null = null;
-  /** Reference to the working editor during note edition */
   private editor: TextEditor | null = null;
-
-  /**
-   * Show the comment edition panel
-   *
-   * @param title The title of the panel
-   * @param fileName The file referenced by the comment
-   * @return WebviewPanel The panel object
-   */
-  private showPanel(title: string, fileName: string): WebviewPanel {
-    this.panel?.dispose(); // Dispose existing panel to avoid duplicates
-    this.panel = this.createWebView(title);
-    this.panel.webview.html = this.getWebviewContent(fileName);
-
-    return this.panel;
-  }
+  private cachedTemplate: string = '';
+  private currentMessageListener: { dispose(): void } | null = null;
+  private currentDisposeListener: { dispose(): void } | null = null;
 
   constructor(public context: ExtensionContext) {
     this.categories = workspace.getConfiguration().get('code-review.categories') as string[];
     this.highlightDecorationColor = workspace
       .getConfiguration()
       .get('code-review.codeSelectionBackgroundColor') as string;
+
+    // Cache the HTML template once to avoid disk I/O on every open
+    const uri = Uri.joinPath(this.context.extensionUri, 'dist', 'webview.html');
+    const pathUri = uri.with({ scheme: 'vscode-resource' });
+    this.cachedTemplate = fs.readFileSync(pathUri.fsPath, 'utf8');
   }
 
   /**
    * Get and store the working text editor
-   *
    * @return TextEditor
    */
   private getWorkingEditor(): TextEditor {
     if (this.editor === null) {
       this.editor = window.activeTextEditor ?? window.visibleTextEditors[0];
     }
-
     return this.editor;
   }
 
   /**
-   * Dispose the stored working editor
+   * Dispose the stored working editor.
    */
   private disposeWorkingEditor() {
     this.editor = null;
+  }
+
+  /**
+   * Show or reuse the webview panel. Reuses existing panel to avoid
+   * the expensive createWebviewPanel call on every comment click.
+   * @param title The title of the panel
+   * @param fileName The file referenced by the comment
+   * @return WebviewPanel The panel object
+   */
+  private showPanel(title: string, fileName: string): WebviewPanel {
+    if (this.panel) {
+      this.panel.title = title;
+      this.panel.webview.html = this.buildHtml(fileName);
+      this.panel.reveal(ViewColumn.Beside);
+      return this.panel;
+    }
+
+    this.panel = window.createWebviewPanel(
+      'text',
+      title,
+      { viewColumn: ViewColumn.Beside },
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+      },
+    );
+
+    this.panel.onDidDispose(() => {
+      this.panel = null;
+    });
+
+    this.panel.webview.html = this.buildHtml(fileName);
+    return this.panel;
+  }
+
+  private buildHtml(fileName: string): string {
+    const selectListString = this.categories.reduce((current, category) => {
+      return current + `<option value="${category}">${category}</option>`;
+    }, '');
+    return this.cachedTemplate
+      .replace('SELECT_LIST_STRING', selectListString)
+      .replace('FILENAME', path.basename(fileName));
   }
 
   deleteComment(commentService: ReviewCommentService, entry: CommentListEntry) {
@@ -68,22 +97,20 @@ export class WebViewComponent {
   editComment(commentService: ReviewCommentService, selections: Range[], data: CsvEntry) {
     const editor = this.getWorkingEditor();
     // Clear the current text selection to avoid unwanted code selection changes.
-    // (see `ReviewCommentService::getSelectedLines()`).
     clearSelection(editor);
-    // highlight selection
+
     const decoration = colorizedBackgroundDecoration(selections, editor, this.highlightDecorationColor);
 
-    // initialize new web tab
     const panel = this.showPanel('Edit code review comment', editor.document.fileName);
-    // const pathToHtml = Uri.file(path.join(this.context.extensionPath, 'src', 'webview.html'));
-    // const pathUri = pathToHtml.with({ scheme: 'vscode-resource' });
-    // panel.webview.html = fs.readFileSync(pathUri.fsPath, 'utf8');
-    // const priorities = workspace.getConfiguration().get('code-review.priorities') as string[];
+
     data = CsvStructure.finalizeParse(data);
     panel.webview.postMessage({ comment: { ...data } });
 
-    // Handle messages from the webview
-    panel.webview.onDidReceiveMessage(
+    // Dispose old listeners when reusing panel
+    this.currentMessageListener?.dispose();
+    this.currentDisposeListener?.dispose();
+
+    this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
         switch (message.command) {
           case 'submit':
@@ -113,7 +140,6 @@ export class WebViewComponent {
                   commentService.deleteComment(data.id, data.title);
                   panel.dispose();
                 } else {
-                  // on cancel: load webview again
                   this.editComment(commentService, selections, data);
                 }
               });
@@ -124,22 +150,28 @@ export class WebViewComponent {
       this.context.subscriptions,
     );
 
-    panel.onDidDispose(() => {
-      // reset highlight selected lines
+    this.currentDisposeListener = panel.onDidDispose(() => {
       decoration.dispose();
       this.disposeWorkingEditor();
     });
   }
 
+  /**
+   * Show the add-comment form. The panel is created on first call and kept
+   * alive (or disposed + recreated) based on the closePanelAfterAdd setting.
+   * On submit the comment is written to CSV, then the form is either cleared
+   * via postMessage or the panel is disposed.
+   */
   addComment(commentService: ReviewCommentService) {
-    // highlight selected lines
     const editor = this.getWorkingEditor();
     const decoration = colorizedBackgroundDecoration(getSelectionRanges(editor), editor, this.highlightDecorationColor);
 
     const panel = this.showPanel('Add code review comment', editor.document.fileName);
 
-    // Handle messages from the webview
-    panel.webview.onDidReceiveMessage(
+    this.currentMessageListener?.dispose();
+    this.currentDisposeListener?.dispose();
+
+    this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
         switch (message.command) {
           case 'submit':
@@ -156,34 +188,9 @@ export class WebViewComponent {
       this.context.subscriptions,
     );
 
-    panel.onDidDispose(() => {
-      // reset highlight selected lines
+    this.currentDisposeListener = panel.onDidDispose(() => {
       decoration.dispose();
       this.disposeWorkingEditor();
     });
-  }
-
-  private createWebView(title: string): WebviewPanel {
-    return window.createWebviewPanel(
-      'text',
-      title,
-      { viewColumn: ViewColumn.Beside },
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-      },
-    );
-  }
-
-  getWebviewContent(fileName: string): string {
-    let selectListString = this.categories.reduce((current, category) => {
-      return current + `<option value="${category}">${category}</option>`;
-    }, '');
-    const uri = Uri.joinPath(this.context.extensionUri, 'dist', 'webview.html');
-    const pathUri = uri.with({ scheme: 'vscode-resource' });
-    return fs
-      .readFileSync(pathUri.fsPath, 'utf8')
-      .replace('SELECT_LIST_STRING', selectListString)
-      .replace('FILENAME', path.basename(fileName));
   }
 }
