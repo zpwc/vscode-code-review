@@ -16,6 +16,8 @@ export class WebViewComponent {
   private cachedTemplate: string = '';
   private currentMessageListener: { dispose(): void } | null = null;
   private currentDisposeListener: { dispose(): void } | null = null;
+  private autoCloseTimer: NodeJS.Timeout | null = null;
+  private readonly AUTO_CLOSE_MS = 60_000;
 
   constructor(public context: ExtensionContext) {
     this.categories = workspace.getConfiguration().get('code-review.categories') as string[];
@@ -59,6 +61,7 @@ export class WebViewComponent {
       this.panel.title = title;
       this.panel.webview.html = this.buildHtml(fileName);
       this.panel.reveal(ViewColumn.Beside);
+      this.resetAutoClose();
       return this.panel;
     }
 
@@ -77,7 +80,17 @@ export class WebViewComponent {
     });
 
     this.panel.webview.html = this.buildHtml(fileName);
+    this.resetAutoClose();
     return this.panel;
+  }
+
+  private resetAutoClose(): void {
+    if (this.autoCloseTimer) {
+      clearTimeout(this.autoCloseTimer);
+    }
+    this.autoCloseTimer = setTimeout(() => {
+      this.panel?.dispose();
+    }, this.AUTO_CLOSE_MS);
   }
 
   private buildHtml(fileName: string): string {
@@ -112,6 +125,7 @@ export class WebViewComponent {
 
     this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
+        this.resetAutoClose();
         switch (message.command) {
           case 'submit':
             const formData = JSON.parse(message.text) as CsvEntry;
@@ -173,6 +187,7 @@ export class WebViewComponent {
 
     this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
+        this.resetAutoClose();
         switch (message.command) {
           case 'submit':
             commentService.addComment(createCommentFromObject(message.text), this.getWorkingEditor());
