@@ -75,6 +75,7 @@ export class WorkspaceContext {
   private importFromJsonRegistration!: Disposable;
   private commentCodeLensProviderregistration!: Disposable;
   private toggleResolvedRegistration!: Disposable;
+  private filterBySpecificCommitRegistration!: Disposable;
   private decorations: Decorations;
 
   constructor(private context: ExtensionContext, public workspaceRoot: string) {
@@ -125,6 +126,11 @@ export class WorkspaceContext {
 
   highlightCommentsInActiveEditor(editor: TextEditor) {
     this.decorations.clear(editor);
+
+    // Quick check: does the CSV contain this file at all?
+    if (!this.exportFactory.csvContainsFile(editor.document.fileName)) {
+      return;
+    }
 
     this.exportFactory.getFilesContainingComments().then((fileEntries) => {
       const matchingFile = fileEntries.find((file) => editor.document.fileName.endsWith(file.label));
@@ -558,9 +564,42 @@ export class WorkspaceContext {
      */
     this.toggleResolvedRegistration = commands.registerCommand(
       'codeReview.toggleResolved',
-      (commentListEntry: CommentListEntry) => {
+      async (commentListEntry: CommentListEntry) => {
         if (commentListEntry?.id) {
-          this.commentService.toggleResolved(commentListEntry.id);
+          await this.commentService.toggleResolved(commentListEntry.id);
+          this.commentsProvider.refresh();
+          this.updateDecorations();
+        }
+      },
+    );
+
+    this.filterBySpecificCommitRegistration = commands.registerCommand(
+      'codeReview.filterBySpecificCommit',
+      async () => {
+        const commits = await this.exportFactory.getAvailableCommits();
+        if (commits.length === 0) {
+          window.showInformationMessage('No commits found in code review data.');
+          return;
+        }
+
+        const items: QuickPickItem[] = [
+          { label: '$(clear-all) All commits', description: '__all__' },
+          ...commits.map((c) => ({
+            label: c.label,
+            description: c.sha,
+          })),
+        ];
+
+        const selected = await window.showQuickPick(items, {
+          placeHolder: 'Select a commit to filter by...',
+        });
+
+        if (!selected) return;
+
+        if (selected.description === '__all__') {
+          this.setFilterByCommit(false);
+        } else if (selected.description !== undefined) {
+          this.exportFactory.setFilterBySpecificCommit(selected.description);
           this.commentsProvider.refresh();
           this.updateDecorations();
         }
@@ -598,6 +637,7 @@ export class WorkspaceContext {
       this.importFromJsonRegistration,
       this.commentCodeLensProviderregistration,
       this.toggleResolvedRegistration,
+      this.filterBySpecificCommitRegistration,
     );
   }
 
@@ -628,6 +668,7 @@ export class WorkspaceContext {
     this.importFromJsonRegistration.dispose();
     this.commentCodeLensProviderregistration.dispose();
     this.toggleResolvedRegistration.dispose();
+    this.filterBySpecificCommitRegistration.dispose();
     this.updateSubscriptions();
   }
 
@@ -638,14 +679,16 @@ export class WorkspaceContext {
     this.registerCommands();
   }
 
-  private setFilterByFilename(state: boolean) {
-    this.exportFactory.setFilterByFilename(state);
-    this.commentsProvider.refresh();
-  }
-
   private setFilterByCommit(state: boolean) {
     this.exportFactory.setFilterByCommit(state);
     this.commentsProvider.refresh();
+    this.updateDecorations();
+  }
+
+  private setFilterByFilename(state: boolean) {
+    this.exportFactory.setFilterByFilename(state);
+    this.commentsProvider.refresh();
+    this.updateDecorations();
   }
 
   private setFilterByPriority(state: boolean) {

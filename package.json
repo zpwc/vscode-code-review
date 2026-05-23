@@ -146,6 +146,11 @@
         }
       },
       {
+        "command": "codeReview.filterBySpecificCommit",
+        "title": "Code Review: Filter by commit...",
+        "icon": "$(git-commit)"
+      },
+      {
         "command": "codeReview.filterByPriorityDisable",
         "title": "Code Review: View comments with all priorities",
         "icon": {
@@ -234,6 +239,11 @@
         {
           "command": "codeReview.filterByCommitDisable",
           "when": "view == code-review.list && isFilteredByCommit",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeReview.filterBySpecificCommit",
+          "when": "view == code-review.list",
           "group": "navigation@1"
         },
         {
