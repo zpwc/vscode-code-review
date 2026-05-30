@@ -8,8 +8,10 @@ import {
   ViewColumn,
   QuickPickItem,
   Disposable,
+  DocumentFilter,
   FileSystemWatcher,
   TextEditor,
+  languages,
 } from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -24,6 +26,7 @@ import { CsvEntry } from './model';
 import { CommentListEntry } from './comment-list-entry';
 import { ImportFactory, ConflictMode } from './import-factory';
 import { Decorations } from './utils/decoration-utils';
+import { CommentLensProvider } from './comment-lens-provider';
 
 const checkForCodeReviewFile = (fileName: string) => {
   commands.executeCommand('setContext', 'codeReview:displayCodeReviewExplorer', fs.existsSync(fileName));
@@ -280,9 +283,11 @@ export class WorkspaceContext {
         return;
       }
 
+      this.webview.onDidChange = () => {
+        this.commentsProvider.refresh();
+        this.updateDecorations();
+      };
       this.webview.addComment(this.commentService);
-      this.commentsProvider.refresh();
-      this.updateDecorations();
     });
 
     this.filterByCommitEnableRegistration = commands.registerCommand('codeReview.filterByCommitEnable', () => {
@@ -556,8 +561,13 @@ export class WorkspaceContext {
     /**
      * support code lens for comment annotations in files
      */
-    // CodeLens disabled: comments are accessed via hover on 💬 icon or sidebar
-    this.commentCodeLensProviderregistration = new Disposable(() => {});
+    // CodeLens shows "Code Review: <title>" above commented ranges.
+    // Clicking the lens opens the edit window for that comment.
+    const ALL_FILES: DocumentFilter = { language: '*', scheme: 'file' };
+    this.commentCodeLensProviderregistration = languages.registerCodeLensProvider(
+      ALL_FILES,
+      new CommentLensProvider(this.exportFactory),
+    );
 
     /**
      * toggle resolved state of a comment

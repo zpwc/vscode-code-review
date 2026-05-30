@@ -18,12 +18,18 @@ export class WebViewComponent {
   private currentDisposeListener: { dispose(): void } | null = null;
   private autoCloseTimer: NodeJS.Timeout | null = null;
   private readonly AUTO_CLOSE_MS = 60_000;
+  private closePanelAfterAdd: boolean;
+  private closePanelAfterEdit: boolean;
+  onDidChange?: () => void;
+  private currentAddDecoration: { dispose(): void } | null = null;
 
   constructor(public context: ExtensionContext) {
     this.categories = workspace.getConfiguration().get('code-review.categories') as string[];
     this.highlightDecorationColor = workspace
       .getConfiguration()
       .get('code-review.codeSelectionBackgroundColor') as string;
+    this.closePanelAfterAdd = workspace.getConfiguration().get('code-review.closePanelAfterAdd', true) as boolean;
+    this.closePanelAfterEdit = workspace.getConfiguration().get('code-review.closePanelAfterEdit', false) as boolean;
 
     // Cache the HTML template once to avoid disk I/O on every open
     const uri = Uri.joinPath(this.context.extensionUri, 'dist', 'webview.html');
@@ -108,6 +114,7 @@ export class WebViewComponent {
   }
 
   editComment(commentService: ReviewCommentService, selections: Range[], data: CsvEntry) {
+    this.disposeWorkingEditor();
     const editor = this.getWorkingEditor();
     // Clear the current text selection to avoid unwanted code selection changes.
     clearSelection(editor);
@@ -117,12 +124,17 @@ export class WebViewComponent {
     const panel = this.showPanel('Edit code review comment', editor.document.fileName);
 
     data = CsvStructure.finalizeParse(data);
-    panel.webview.postMessage({ comment: { ...data } });
+    panel.webview.postMessage({
+      command: 'populate',
+      filename: path.basename(editor.document.fileName),
+      comment: { ...data },
+    });
 
     // Dispose old listeners when reusing panel
     this.currentMessageListener?.dispose();
     this.currentDisposeListener?.dispose();
 
+    // Handle messages from the webview
     this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
         this.resetAutoClose();
@@ -139,7 +151,15 @@ export class WebViewComponent {
               private: formData.private || 0,
             };
             commentService.updateComment(newEntry, this.getWorkingEditor());
-            panel.dispose();
+            if (this.closePanelAfterEdit) {
+              panel.dispose();
+            } else {
+              panel.webview.postMessage({
+                command: 'populate',
+                filename: path.basename(this.getWorkingEditor().document.fileName),
+                comment: { ...newEntry },
+              });
+            }
             break;
 
           case 'cancel':
@@ -177,34 +197,57 @@ export class WebViewComponent {
    * via postMessage or the panel is disposed.
    */
   addComment(commentService: ReviewCommentService) {
+    this.disposeWorkingEditor();
     const editor = this.getWorkingEditor();
-    const decoration = colorizedBackgroundDecoration(getSelectionRanges(editor), editor, this.highlightDecorationColor);
+    this.currentAddDecoration?.dispose();
+    this.currentAddDecoration = colorizedBackgroundDecoration(
+      getSelectionRanges(editor),
+      editor,
+      this.highlightDecorationColor,
+    );
 
     const panel = this.showPanel('Add code review comment', editor.document.fileName);
 
     this.currentMessageListener?.dispose();
     this.currentDisposeListener?.dispose();
 
+    // Handle messages from the webview
     this.currentMessageListener = panel.webview.onDidReceiveMessage(
       (message) => {
         this.resetAutoClose();
         switch (message.command) {
           case 'submit':
             commentService.addComment(createCommentFromObject(message.text), this.getWorkingEditor());
+            this.onDidChange?.();
+            this.currentAddDecoration?.dispose();
+            this.currentAddDecoration = null;
+
+            if (this.closePanelAfterAdd) {
+              panel.dispose();
+            } else {
+              panel.webview.postMessage({ command: 'reset' });
+            }
             break;
 
           case 'cancel':
+            this.currentAddDecoration?.dispose();
+            this.currentAddDecoration = null;
+
+            if (this.closePanelAfterAdd) {
+              panel.dispose();
+            } else {
+              panel.webview.postMessage({ command: 'reset' });
+            }
             break;
         }
-
-        panel.dispose();
       },
       undefined,
       this.context.subscriptions,
     );
 
     this.currentDisposeListener = panel.onDidDispose(() => {
-      decoration.dispose();
+      this.currentAddDecoration?.dispose();
+      this.currentAddDecoration = null;
       this.disposeWorkingEditor();
     });
   }
