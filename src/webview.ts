@@ -20,7 +20,7 @@ export class WebViewComponent {
   private readonly AUTO_CLOSE_MS = 60_000;
   private closePanelAfterAdd: boolean;
   private closePanelAfterEdit: boolean;
-  onDidChange?: () => void;
+  onDidChange?: (editor: TextEditor) => void;
   private currentAddDecoration: { dispose(): void } | null = null;
 
   constructor(public context: ExtensionContext) {
@@ -151,7 +151,7 @@ export class WebViewComponent {
               private: formData.private || 0,
             };
             commentService.updateComment(newEntry, this.getWorkingEditor());
-            this.onDidChange?.();
+            this.onDidChange?.(editor);
             if (this.closePanelAfterEdit) {
               panel.dispose();
             } else {
@@ -219,7 +219,7 @@ export class WebViewComponent {
         switch (message.command) {
           case 'submit':
             commentService.addComment(createCommentFromObject(message.text), this.getWorkingEditor());
-            this.onDidChange?.();
+            this.onDidChange?.(editor);
             this.currentAddDecoration?.dispose();
             this.currentAddDecoration = null;
 

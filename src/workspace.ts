@@ -197,8 +197,10 @@ export class WorkspaceContext {
   /**
    * refresh highlighted comments in text editor
    */
-  updateDecorations() {
-    const editor = window.activeTextEditor ?? window.visibleTextEditors[0];
+  updateDecorations(editor?: TextEditor) {
+    if (!editor) {
+      editor = window.activeTextEditor ?? window.visibleTextEditors[0];
+    }
     if (editor) {
       this.highlightCommentsInActiveEditor(editor);
     }
@@ -287,9 +289,9 @@ export class WorkspaceContext {
         return;
       }
 
-      this.webview.onDidChange = () => {
+      this.webview.onDidChange = (editor) => {
         this.commentsProvider.refresh();
-        this.updateDecorations();
+        this.updateDecorations(editor);
       };
       this.webview.addComment(this.commentService);
     });
