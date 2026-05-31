@@ -265,6 +265,15 @@ export class WorkspaceContext {
                 this.webview.onDidChange = (editor) => {
                   this.commentsProvider.refresh();
                   this.updateDecorations(editor);
+                  // No-op edit triggers CodeLens re-evaluation
+                  editor
+                    .edit(
+                      (eb) => {
+                        eb.insert(editor.selection.active, '');
+                      },
+                      { undoStopBefore: false, undoStopAfter: false },
+                    )
+                    .then(() => {});
                 };
                 this.webview.editComment(this.commentService, ranges, csvRef);
               }
@@ -296,6 +305,14 @@ export class WorkspaceContext {
       this.webview.onDidChange = (editor) => {
         this.commentsProvider.refresh();
         this.updateDecorations(editor);
+        editor
+          .edit(
+            (eb) => {
+              eb.insert(editor.selection.active, '');
+            },
+            { undoStopBefore: false, undoStopAfter: false },
+          )
+          .then(() => {});
       };
       this.webview.addComment(this.commentService);
     });
