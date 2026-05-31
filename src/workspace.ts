@@ -262,6 +262,10 @@ export class WorkspaceContext {
               if (csvRef) {
                 const ranges: Range[] = rangesFromStringDefinition(csvRef.lines);
                 textEditor.revealRange(ranges[0]);
+                this.webview.onDidChange = (editor) => {
+                  this.commentsProvider.refresh();
+                  this.updateDecorations(editor);
+                };
                 this.webview.editComment(this.commentService, ranges, csvRef);
               }
             });
