@@ -198,8 +198,9 @@ export class WorkspaceContext {
    * refresh highlighted comments in text editor
    */
   updateDecorations() {
-    if (window.activeTextEditor) {
-      this.highlightCommentsInActiveEditor(window.activeTextEditor);
+    const editor = window.activeTextEditor ?? window.visibleTextEditors[0];
+    if (editor) {
+      this.highlightCommentsInActiveEditor(editor);
     }
   }
 
