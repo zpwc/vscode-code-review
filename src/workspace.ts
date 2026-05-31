@@ -180,13 +180,16 @@ export class WorkspaceContext {
     checkForCodeReviewFile(this.generator.absoluteReviewFilePath);
     this.fileWatcher.onDidChange(() => {
       this.commentsProvider.refresh();
+      this.updateDecorations();
     });
     this.fileWatcher.onDidCreate(() => {
       this.commentsProvider.refresh();
+      this.updateDecorations();
       checkForCodeReviewFile(this.generator.absoluteReviewFilePath);
     });
     this.fileWatcher.onDidDelete(() => {
       this.commentsProvider.refresh();
+      this.updateDecorations();
       checkForCodeReviewFile(this.generator.absoluteReviewFilePath);
     });
   }
