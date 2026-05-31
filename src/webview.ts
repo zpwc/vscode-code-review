@@ -151,6 +151,7 @@ export class WebViewComponent {
               private: formData.private || 0,
             };
             commentService.updateComment(newEntry, this.getWorkingEditor());
+            this.onDidChange?.();
             if (this.closePanelAfterEdit) {
               panel.dispose();
             } else {

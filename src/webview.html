@@ -341,6 +341,10 @@
     document.getElementById('comment').focus();
 
     function addNote() {
+      // Disable the button immediately for visual feedback
+      var btn = document.getElementById('add');
+      btn.disabled = true;
+
       const title = document.getElementById('title').value;
       const comment = document.getElementById('comment').value;
       const trafficLightEl = document.querySelector('input[name=traffic-light-color]:checked');
